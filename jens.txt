@@ -1,0 +1,21 @@
+From jthomas@exgal.mpe.mpg.de Tue May  2 12:02:30 2006
+Date: Fri, 28 Apr 2006 16:43:23 +0200 (CEST)
+From: Jens Thomas <jthomas@exgal.mpe.mpg.de>
+To: Karl GEBHARDT <gebhardt@astro.as.utexas.edu>
+Subject: oneorbit
+
+it differs from the old oneorbit as follows:
+
+- needs halo things (halotables, haloread ...)
+- asks for rperi, rapo and v as launch positions
+   (instead of iLz, iE and iv; rperi and rapo
+   determine Lz and E; v is sin(theta) of the
+   intersection with the ZVC; old launching scheme)
+- if you give a negative v it asks again, now for
+   rperi rapo rstart vr
+   again, rperi and rapo determine Lz and E, but
+   rstart and vr are the SOS-coordinates of the
+   launching point of the orbit
+    [ Part 2, ""  Text/PLAIN (Name: "oneorbit.f")  515 lines. ]
+    [ Unable to print this part. ]
+

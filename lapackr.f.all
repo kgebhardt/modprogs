@@ -1,0 +1,1823 @@
+      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+*     .. Scalar Arguments ..
+      DOUBLE PRECISION ALPHA,BETA
+      INTEGER K,LDA,LDB,LDC,M,N
+      CHARACTER TRANSA,TRANSB
+*     ..
+*     .. Array Arguments ..
+      DOUBLE PRECISION A(LDA,*),B(LDB,*),C(LDC,*)
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  DGEMM  performs one of the matrix-matrix operations
+*
+*     C := alpha*op( A )*op( B ) + beta*C,
+*
+*  where  op( X ) is one of
+*
+*     op( X ) = X   or   op( X ) = X',
+*
+*  alpha and beta are scalars, and A, B and C are matrices, with op( A )
+*  an m by k matrix,  op( B )  a  k by n matrix and  C an m by n matrix.
+*
+*  Arguments
+*  ==========
+*
+*  TRANSA - CHARACTER*1.
+*           On entry, TRANSA specifies the form of op( A ) to be used in
+*           the matrix multiplication as follows:
+*
+*              TRANSA = 'N' or 'n',  op( A ) = A.
+*
+*              TRANSA = 'T' or 't',  op( A ) = A'.
+*
+*              TRANSA = 'C' or 'c',  op( A ) = A'.
+*
+*           Unchanged on exit.
+*
+*  TRANSB - CHARACTER*1.
+*           On entry, TRANSB specifies the form of op( B ) to be used in
+*           the matrix multiplication as follows:
+*
+*              TRANSB = 'N' or 'n',  op( B ) = B.
+*
+*              TRANSB = 'T' or 't',  op( B ) = B'.
+*
+*              TRANSB = 'C' or 'c',  op( B ) = B'.
+*
+*           Unchanged on exit.
+*
+*  M      - INTEGER.
+*           On entry,  M  specifies  the number  of rows  of the  matrix
+*           op( A )  and of the  matrix  C.  M  must  be at least  zero.
+*           Unchanged on exit.
+*
+*  N      - INTEGER.
+*           On entry,  N  specifies the number  of columns of the matrix
+*           op( B ) and the number of columns of the matrix C. N must be
+*           at least zero.
+*           Unchanged on exit.
+*
+*  K      - INTEGER.
+*           On entry,  K  specifies  the number of columns of the matrix
+*           op( A ) and the number of rows of the matrix op( B ). K must
+*           be at least  zero.
+*           Unchanged on exit.
+*
+*  ALPHA  - DOUBLE PRECISION.
+*           On entry, ALPHA specifies the scalar alpha.
+*           Unchanged on exit.
+*
+*  A      - DOUBLE PRECISION array of DIMENSION ( LDA, ka ), where ka is
+*           k  when  TRANSA = 'N' or 'n',  and is  m  otherwise.
+*           Before entry with  TRANSA = 'N' or 'n',  the leading  m by k
+*           part of the array  A  must contain the matrix  A,  otherwise
+*           the leading  k by m  part of the array  A  must contain  the
+*           matrix A.
+*           Unchanged on exit.
+*
+*  LDA    - INTEGER.
+*           On entry, LDA specifies the first dimension of A as declared
+*           in the calling (sub) program. When  TRANSA = 'N' or 'n' then
+*           LDA must be at least  max( 1, m ), otherwise  LDA must be at
+*           least  max( 1, k ).
+*           Unchanged on exit.
+*
+*  B      - DOUBLE PRECISION array of DIMENSION ( LDB, kb ), where kb is
+*           n  when  TRANSB = 'N' or 'n',  and is  k  otherwise.
+*           Before entry with  TRANSB = 'N' or 'n',  the leading  k by n
+*           part of the array  B  must contain the matrix  B,  otherwise
+*           the leading  n by k  part of the array  B  must contain  the
+*           matrix B.
+*           Unchanged on exit.
+*
+*  LDB    - INTEGER.
+*           On entry, LDB specifies the first dimension of B as declared
+*           in the calling (sub) program. When  TRANSB = 'N' or 'n' then
+*           LDB must be at least  max( 1, k ), otherwise  LDB must be at
+*           least  max( 1, n ).
+*           Unchanged on exit.
+*
+*  BETA   - DOUBLE PRECISION.
+*           On entry,  BETA  specifies the scalar  beta.  When  BETA  is
+*           supplied as zero then C need not be set on input.
+*           Unchanged on exit.
+*
+*  C      - DOUBLE PRECISION array of DIMENSION ( LDC, n ).
+*           Before entry, the leading  m by n  part of the array  C must
+*           contain the matrix  C,  except when  beta  is zero, in which
+*           case C need not be set on entry.
+*           On exit, the array  C  is overwritten by the  m by n  matrix
+*           ( alpha*op( A )*op( B ) + beta*C ).
+*
+*  LDC    - INTEGER.
+*           On entry, LDC specifies the first dimension of C as declared
+*           in  the  calling  (sub)  program.   LDC  must  be  at  least
+*           max( 1, m ).
+*           Unchanged on exit.
+*
+*
+*  Level 3 Blas routine.
+*
+*  -- Written on 8-February-1989.
+*     Jack Dongarra, Argonne National Laboratory.
+*     Iain Duff, AERE Harwell.
+*     Jeremy Du Croz, Numerical Algorithms Group Ltd.
+*     Sven Hammarling, Numerical Algorithms Group Ltd.
+*
+*
+*     .. External Functions ..
+      LOGICAL LSAME
+      EXTERNAL LSAME
+*     ..
+*     .. External Subroutines ..
+      EXTERNAL XERBLA
+*     ..
+*     .. Intrinsic Functions ..
+      INTRINSIC MAX
+*     ..
+*     .. Local Scalars ..
+      DOUBLE PRECISION TEMP
+      INTEGER I,INFO,J,L,NCOLA,NROWA,NROWB
+      LOGICAL NOTA,NOTB
+*     ..
+*     .. Parameters ..
+      DOUBLE PRECISION ONE,ZERO
+      PARAMETER (ONE=1.0D+0,ZERO=0.0D+0)
+*     ..
+*
+*     Set  NOTA  and  NOTB  as  true if  A  and  B  respectively are not
+*     transposed and set  NROWA, NCOLA and  NROWB  as the number of rows
+*     and  columns of  A  and the  number of  rows  of  B  respectively.
+*
+      NOTA = LSAME(TRANSA,'N')
+      NOTB = LSAME(TRANSB,'N')
+      IF (NOTA) THEN
+          NROWA = M
+          NCOLA = K
+      ELSE
+          NROWA = K
+          NCOLA = M
+      END IF
+      IF (NOTB) THEN
+          NROWB = K
+      ELSE
+          NROWB = N
+      END IF
+*
+*     Test the input parameters.
+*
+      INFO = 0
+      IF ((.NOT.NOTA) .AND. (.NOT.LSAME(TRANSA,'C')) .AND.
+     +    (.NOT.LSAME(TRANSA,'T'))) THEN
+          INFO = 1
+      ELSE IF ((.NOT.NOTB) .AND. (.NOT.LSAME(TRANSB,'C')) .AND.
+     +         (.NOT.LSAME(TRANSB,'T'))) THEN
+          INFO = 2
+      ELSE IF (M.LT.0) THEN
+          INFO = 3
+      ELSE IF (N.LT.0) THEN
+          INFO = 4
+      ELSE IF (K.LT.0) THEN
+          INFO = 5
+      ELSE IF (LDA.LT.MAX(1,NROWA)) THEN
+          INFO = 8
+      ELSE IF (LDB.LT.MAX(1,NROWB)) THEN
+          INFO = 10
+      ELSE IF (LDC.LT.MAX(1,M)) THEN
+          INFO = 13
+      END IF
+      IF (INFO.NE.0) THEN
+          CALL XERBLA('DGEMM ',INFO)
+          RETURN
+      END IF
+*
+*     Quick return if possible.
+*
+      IF ((M.EQ.0) .OR. (N.EQ.0) .OR.
+     +    (((ALPHA.EQ.ZERO).OR. (K.EQ.0)).AND. (BETA.EQ.ONE))) RETURN
+*
+*     And if  alpha.eq.zero.
+*
+      IF (ALPHA.EQ.ZERO) THEN
+          IF (BETA.EQ.ZERO) THEN
+              DO 20 J = 1,N
+                  DO 10 I = 1,M
+                      C(I,J) = ZERO
+ 10                                CONTINUE
+ 20                                         CONTINUE
+          ELSE
+              DO 40 J = 1,N
+                  DO 30 I = 1,M
+                      C(I,J) = BETA*C(I,J)
+ 30                                CONTINUE
+ 40                                         CONTINUE
+          END IF
+          RETURN
+      END IF
+*
+*     Start the operations.
+*
+      IF (NOTB) THEN
+          IF (NOTA) THEN
+*
+*           Form  C := alpha*A*B + beta*C.
+*
+              DO 90 J = 1,N
+                  IF (BETA.EQ.ZERO) THEN
+                      DO 50 I = 1,M
+                          C(I,J) = ZERO
+ 50                                        CONTINUE
+                  ELSE IF (BETA.NE.ONE) THEN
+                      DO 60 I = 1,M
+                          C(I,J) = BETA*C(I,J)
+ 60                                        CONTINUE
+                  END IF
+                  DO 80 L = 1,K
+                      IF (B(L,J).NE.ZERO) THEN
+                          TEMP = ALPHA*B(L,J)
+                          DO 70 I = 1,M
+                              C(I,J) = C(I,J) + TEMP*A(I,L)
+ 70                                                CONTINUE
+                      END IF
+ 80                                CONTINUE
+ 90                                         CONTINUE
+          ELSE
+*
+*           Form  C := alpha*A'*B + beta*C
+*
+              DO 120 J = 1,N
+                  DO 110 I = 1,M
+                      TEMP = ZERO
+                      DO 100 L = 1,K
+                          TEMP = TEMP + A(L,I)*B(L,J)
+ 100                                       CONTINUE
+                      IF (BETA.EQ.ZERO) THEN
+                          C(I,J) = ALPHA*TEMP
+                      ELSE
+                          C(I,J) = ALPHA*TEMP + BETA*C(I,J)
+                      END IF
+ 110                               CONTINUE
+ 120                                        CONTINUE
+          END IF
+      ELSE
+          IF (NOTA) THEN
+*
+*           Form  C := alpha*A*B' + beta*C
+*
+              DO 170 J = 1,N
+                  IF (BETA.EQ.ZERO) THEN
+                      DO 130 I = 1,M
+                          C(I,J) = ZERO
+ 130                                       CONTINUE
+                  ELSE IF (BETA.NE.ONE) THEN
+                      DO 140 I = 1,M
+                          C(I,J) = BETA*C(I,J)
+ 140                                       CONTINUE
+                  END IF
+                  DO 160 L = 1,K
+                      IF (B(J,L).NE.ZERO) THEN
+                          TEMP = ALPHA*B(J,L)
+                          DO 150 I = 1,M
+                              C(I,J) = C(I,J) + TEMP*A(I,L)
+ 150                                               CONTINUE
+                      END IF
+ 160                               CONTINUE
+ 170                                        CONTINUE
+          ELSE
+*
+*           Form  C := alpha*A'*B' + beta*C
+*
+              DO 200 J = 1,N
+                  DO 190 I = 1,M
+                      TEMP = ZERO
+                      DO 180 L = 1,K
+                          TEMP = TEMP + A(L,I)*B(J,L)
+ 180                                       CONTINUE
+                      IF (BETA.EQ.ZERO) THEN
+                          C(I,J) = ALPHA*TEMP
+                      ELSE
+                          C(I,J) = ALPHA*TEMP + BETA*C(I,J)
+                      END IF
+ 190                               CONTINUE
+ 200                                        CONTINUE
+          END IF
+      END IF
+*
+      RETURN
+*
+*     End of DGEMM .
+*
+      END
+      LOGICAL          FUNCTION LSAME( CA, CB )
+*
+*  -- LAPACK auxiliary routine (version 3.1) --
+*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+*     November 2006
+*
+*     .. Scalar Arguments ..
+      CHARACTER          CA, CB
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  LSAME returns .TRUE. if CA is the same letter as CB regardless of
+*  case.
+*
+*  Arguments
+*  =========
+*
+*  CA      (input) CHARACTER*1
+*  CB      (input) CHARACTER*1
+*          CA and CB specify the single characters to be compared.
+*
+* =====================================================================
+*
+*     .. Intrinsic Functions ..
+      INTRINSIC          ICHAR
+*     ..
+*     .. Local Scalars ..
+      INTEGER            INTA, INTB, ZCODE
+*     ..
+*     .. Executable Statements ..
+*
+*     Test if the characters are equal
+*
+      LSAME = CA.EQ.CB
+      IF( LSAME )
+     $   RETURN
+*
+*     Now test for equivalence if both characters are alphabetic.
+*
+      ZCODE = ICHAR( 'Z' )
+*
+*     Use 'Z' rather than 'A' so that ASCII can be detected on Prime
+*     machines, on which ICHAR returns a value with bit 8 set.
+*     ICHAR('A') on Prime machines returns 193 which is the same as
+*     ICHAR('A') on an EBCDIC machine.
+*
+      INTA = ICHAR( CA )
+      INTB = ICHAR( CB )
+*
+      IF( ZCODE.EQ.90 .OR. ZCODE.EQ.122 ) THEN
+*
+*        ASCII is assumed - ZCODE is the ASCII code of either lower or
+*        upper case 'Z'.
+*
+         IF( INTA.GE.97 .AND. INTA.LE.122 ) INTA = INTA - 32
+         IF( INTB.GE.97 .AND. INTB.LE.122 ) INTB = INTB - 32
+*
+      ELSE IF( ZCODE.EQ.233 .OR. ZCODE.EQ.169 ) THEN
+*
+*        EBCDIC is assumed - ZCODE is the EBCDIC code of either lower or
+*        upper case 'Z'.
+*
+         IF( INTA.GE.129 .AND. INTA.LE.137 .OR.
+     $       INTA.GE.145 .AND. INTA.LE.153 .OR.
+     $       INTA.GE.162 .AND. INTA.LE.169 ) INTA = INTA + 64
+         IF( INTB.GE.129 .AND. INTB.LE.137 .OR.
+     $       INTB.GE.145 .AND. INTB.LE.153 .OR.
+     $       INTB.GE.162 .AND. INTB.LE.169 ) INTB = INTB + 64
+*
+      ELSE IF( ZCODE.EQ.218 .OR. ZCODE.EQ.250 ) THEN
+*
+*        ASCII is assumed, on Prime machines - ZCODE is the ASCII code
+*        plus 128 of either lower or upper case 'Z'.
+*
+         IF( INTA.GE.225 .AND. INTA.LE.250 ) INTA = INTA - 32
+         IF( INTB.GE.225 .AND. INTB.LE.250 ) INTB = INTB - 32
+      END IF
+      LSAME = INTA.EQ.INTB
+*
+*     RETURN
+*
+*     End of LSAME
+*
+      END
+      SUBROUTINE XERBLA(SRNAME,INFO)
+*
+*  -- LAPACK auxiliary routine (preliminary version) --
+*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+*     November 2006
+*
+*     .. Scalar Arguments ..
+      INTEGER INFO
+      CHARACTER*6 SRNAME
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  XERBLA  is an error handler for the LAPACK routines.
+*  It is called by an LAPACK routine if an input parameter has an
+*  invalid value.  A message is printed and execution stops.
+*
+*  Installers may consider modifying the STOP statement in order to
+*  call system-specific exception-handling facilities.
+*
+*  Arguments
+*  =========
+*
+*  SRNAME  (input) CHARACTER*6
+*          The name of the routine which called XERBLA.
+*
+*  INFO    (input) INTEGER
+*          The position of the invalid parameter in the parameter list
+*          of the calling routine.
+*
+*
+      WRITE (*,FMT=9999) SRNAME,INFO
+*
+      STOP
+*
+ 9999  FORMAT (' ** On entry to ',A6,' parameter number ',I2,' had ',
+     +       'an illegal value')
+*
+*     End of XERBLA
+*
+      END
+
+      SUBROUTINE DSYSV( UPLO, N, NRHS, A, LDA, IPIV, B, LDB, WORK,
+     $                  LWORK, INFO )
+*
+*  -- LAPACK driver routine (version 3.0) --
+*     Univ. of Tennessee, Univ. of California Berkeley, NAG Ltd.,
+*     Courant Institute, Argonne National Lab, and Rice University
+*     June 30, 1999
+*
+*     .. Scalar Arguments ..
+      CHARACTER          UPLO
+      INTEGER            INFO, LDA, LDB, LWORK, N, NRHS
+*     ..
+*     .. Array Arguments ..
+      INTEGER            IPIV( * )
+      DOUBLE PRECISION   A( LDA, * ), B( LDB, * ), WORK( * )
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  DSYSV computes the solution to a real system of linear equations
+*     A * X = B,
+*  where A is an N-by-N symmetric matrix and X and B are N-by-NRHS
+*  matrices.
+*
+*  The diagonal pivoting method is used to factor A as
+*     A = U * D * U**T,  if UPLO = 'U', or
+*     A = L * D * L**T,  if UPLO = 'L',
+*  where U (or L) is a product of permutation and unit upper (lower)
+*  triangular matrices, and D is symmetric and block diagonal with
+*  1-by-1 and 2-by-2 diagonal blocks.  The factored form of A is then
+*  used to solve the system of equations A * X = B.
+*
+*  Arguments
+*  =========
+*
+*  UPLO    (input) CHARACTER*1
+*          = 'U':  Upper triangle of A is stored;
+*          = 'L':  Lower triangle of A is stored.
+*
+*  N       (input) INTEGER
+*          The number of linear equations, i.e., the order of the
+*          matrix A.  N >= 0.
+*
+*  NRHS    (input) INTEGER
+*          The number of right hand sides, i.e., the number of columns
+*          of the matrix B.  NRHS >= 0.
+*
+*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+*          On entry, the symmetric matrix A.  If UPLO = 'U', the leading
+*          N-by-N upper triangular part of A contains the upper
+*          triangular part of the matrix A, and the strictly lower
+*          triangular part of A is not referenced.  If UPLO = 'L', the
+*          leading N-by-N lower triangular part of A contains the lower
+*          triangular part of the matrix A, and the strictly upper
+*          triangular part of A is not referenced.
+*
+*          On exit, if INFO = 0, the block diagonal matrix D and the
+*          multipliers used to obtain the factor U or L from the
+*          factorization A = U*D*U**T or A = L*D*L**T as computed by
+*          DSYTRF.
+*
+*  LDA     (input) INTEGER
+*          The leading dimension of the array A.  LDA >= max(1,N).
+*
+*  IPIV    (output) INTEGER array, dimension (N)
+*          Details of the interchanges and the block structure of D, as
+*          determined by DSYTRF.  If IPIV(k) > 0, then rows and columns
+*          k and IPIV(k) were interchanged, and D(k,k) is a 1-by-1
+*          diagonal block.  If UPLO = 'U' and IPIV(k) = IPIV(k-1) < 0,
+*          then rows and columns k-1 and -IPIV(k) were interchanged and
+*          D(k-1:k,k-1:k) is a 2-by-2 diagonal block.  If UPLO = 'L' and
+*          IPIV(k) = IPIV(k+1) < 0, then rows and columns k+1 and
+*          -IPIV(k) were interchanged and D(k:k+1,k:k+1) is a 2-by-2
+*          diagonal block.
+*
+*  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+*          On entry, the N-by-NRHS right hand side matrix B.
+*          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
+*
+*  LDB     (input) INTEGER
+*          The leading dimension of the array B.  LDB >= max(1,N).
+*
+*  WORK    (workspace/output) DOUBLE PRECISION array, dimension (LWORK)
+*          On exit, if INFO = 0, WORK(1) returns the optimal LWORK.
+*
+*  LWORK   (input) INTEGER
+*          The length of WORK.  LWORK >= 1, and for best performance
+*          LWORK >= N*NB, where NB is the optimal blocksize for
+*          DSYTRF.
+*
+*          If LWORK = -1, then a workspace query is assumed; the routine
+*          only calculates the optimal size of the WORK array, returns
+*          this value as the first entry of the WORK array, and no error
+*          message related to LWORK is issued by XERBLA.
+*
+*  INFO    (output) INTEGER
+*          = 0: successful exit
+*          < 0: if INFO = -i, the i-th argument had an illegal value
+*          > 0: if INFO = i, D(i,i) is exactly zero.  The factorization
+*               has been completed, but the block diagonal matrix D is
+*               exactly singular, so the solution could not be computed.
+*
+*  =====================================================================
+*
+*     .. Local Scalars ..
+      LOGICAL            LQUERY
+      INTEGER            LWKOPT, NB
+*     ..
+*     .. External Functions ..
+      LOGICAL            LSAME
+      INTEGER            ILAENV
+      EXTERNAL           LSAME, ILAENV
+*     ..
+*     .. External Subroutines ..
+      EXTERNAL           DSYTRF, DSYTRS, XERBLA
+*     ..
+*     .. Intrinsic Functions ..
+      INTRINSIC          MAX
+*     ..
+*     .. Executable Statements ..
+*
+*     Test the input parameters.
+*
+      INFO = 0
+      LQUERY = ( LWORK.EQ.-1 )
+      IF( .NOT.LSAME( UPLO, 'U' ) .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+         INFO = -1
+      ELSE IF( N.LT.0 ) THEN
+         INFO = -2
+      ELSE IF( NRHS.LT.0 ) THEN
+         INFO = -3
+      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+         INFO = -5
+      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+         INFO = -8
+      ELSE IF( LWORK.LT.1 .AND. .NOT.LQUERY ) THEN
+         INFO = -10
+      END IF
+*
+      IF( INFO.EQ.0 ) THEN
+         NB = ILAENV( 1, 'DSYTRF', UPLO, N, -1, -1, -1 )
+         LWKOPT = N*NB
+         WORK( 1 ) = LWKOPT
+      END IF
+*
+      IF( INFO.NE.0 ) THEN
+         CALL XERBLA( 'DSYSV ', -INFO )
+         RETURN
+      ELSE IF( LQUERY ) THEN
+         RETURN
+      END IF
+*
+*     Compute the factorization A = U*D*U' or A = L*D*L'.
+*
+      CALL DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
+      IF( INFO.EQ.0 ) THEN
+*
+*        Solve the system A*X = B, overwriting B with X.
+*
+         CALL DSYTRS( UPLO, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+*
+      END IF
+*
+      WORK( 1 ) = LWKOPT
+*
+      RETURN
+*
+*     End of DSYSV
+*
+      END
+      SUBROUTINE DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
+*
+*  -- LAPACK routine (version 3.0) --
+*     Univ. of Tennessee, Univ. of California Berkeley, NAG Ltd.,
+*     Courant Institute, Argonne National Lab, and Rice University
+*     June 30, 1999
+*
+*     .. Scalar Arguments ..
+      CHARACTER          UPLO
+      INTEGER            INFO, LDA, LWORK, N
+*     ..
+*     .. Array Arguments ..
+      INTEGER            IPIV( * )
+      DOUBLE PRECISION   A( LDA, * ), WORK( * )
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  DSYTRF computes the factorization of a real symmetric matrix A using
+*  the Bunch-Kaufman diagonal pivoting method.  The form of the
+*  factorization is
+*
+*     A = U*D*U**T  or  A = L*D*L**T
+*
+*  where U (or L) is a product of permutation and unit upper (lower)
+*  triangular matrices, and D is symmetric and block diagonal with
+*  1-by-1 and 2-by-2 diagonal blocks.
+*
+*  This is the blocked version of the algorithm, calling Level 3 BLAS.
+*
+*  Arguments
+*  =========
+*
+*  UPLO    (input) CHARACTER*1
+*          = 'U':  Upper triangle of A is stored;
+*          = 'L':  Lower triangle of A is stored.
+*
+*  N       (input) INTEGER
+*          The order of the matrix A.  N >= 0.
+*
+*  A       (input/output) DOUBLE PRECISION array, dimension (LDA,N)
+*          On entry, the symmetric matrix A.  If UPLO = 'U', the leading
+*          N-by-N upper triangular part of A contains the upper
+*          triangular part of the matrix A, and the strictly lower
+*          triangular part of A is not referenced.  If UPLO = 'L', the
+*          leading N-by-N lower triangular part of A contains the lower
+*          triangular part of the matrix A, and the strictly upper
+*          triangular part of A is not referenced.
+*
+*          On exit, the block diagonal matrix D and the multipliers used
+*          to obtain the factor U or L (see below for further details).
+*
+*  LDA     (input) INTEGER
+*          The leading dimension of the array A.  LDA >= max(1,N).
+*
+*  IPIV    (output) INTEGER array, dimension (N)
+*          Details of the interchanges and the block structure of D.
+*          If IPIV(k) > 0, then rows and columns k and IPIV(k) were
+*          interchanged and D(k,k) is a 1-by-1 diagonal block.
+*          If UPLO = 'U' and IPIV(k) = IPIV(k-1) < 0, then rows and
+*          columns k-1 and -IPIV(k) were interchanged and D(k-1:k,k-1:k)
+*          is a 2-by-2 diagonal block.  If UPLO = 'L' and IPIV(k) =
+*          IPIV(k+1) < 0, then rows and columns k+1 and -IPIV(k) were
+*          interchanged and D(k:k+1,k:k+1) is a 2-by-2 diagonal block.
+*
+*  WORK    (workspace/output) DOUBLE PRECISION array, dimension (LWORK)
+*          On exit, if INFO = 0, WORK(1) returns the optimal LWORK.
+*
+*  LWORK   (input) INTEGER
+*          The length of WORK.  LWORK >=1.  For best performance
+*          LWORK >= N*NB, where NB is the block size returned by ILAENV.
+*
+*          If LWORK = -1, then a workspace query is assumed; the routine
+*          only calculates the optimal size of the WORK array, returns
+*          this value as the first entry of the WORK array, and no error
+*          message related to LWORK is issued by XERBLA.
+*
+*  INFO    (output) INTEGER
+*          = 0:  successful exit
+*          < 0:  if INFO = -i, the i-th argument had an illegal value
+*          > 0:  if INFO = i, D(i,i) is exactly zero.  The factorization
+*                has been completed, but the block diagonal matrix D is
+*                exactly singular, and division by zero will occur if it
+*                is used to solve a system of equations.
+*
+*  Further Details
+*  ===============
+*
+*  If UPLO = 'U', then A = U*D*U', where
+*     U = P(n)*U(n)* ... *P(k)U(k)* ...,
+*  i.e., U is a product of terms P(k)*U(k), where k decreases from n to
+*  1 in steps of 1 or 2, and D is a block diagonal matrix with 1-by-1
+*  and 2-by-2 diagonal blocks D(k).  P(k) is a permutation matrix as
+*  defined by IPIV(k), and U(k) is a unit upper triangular matrix, such
+*  that if the diagonal block D(k) is of order s (s = 1 or 2), then
+*
+*             (   I    v    0   )   k-s
+*     U(k) =  (   0    I    0   )   s
+*             (   0    0    I   )   n-k
+*                k-s   s   n-k
+*
+*  If s = 1, D(k) overwrites A(k,k), and v overwrites A(1:k-1,k).
+*  If s = 2, the upper triangle of D(k) overwrites A(k-1,k-1), A(k-1,k),
+*  and A(k,k), and v overwrites A(1:k-2,k-1:k).
+*
+*  If UPLO = 'L', then A = L*D*L', where
+*     L = P(1)*L(1)* ... *P(k)*L(k)* ...,
+*  i.e., L is a product of terms P(k)*L(k), where k increases from 1 to
+*  n in steps of 1 or 2, and D is a block diagonal matrix with 1-by-1
+*  and 2-by-2 diagonal blocks D(k).  P(k) is a permutation matrix as
+*  defined by IPIV(k), and L(k) is a unit lower triangular matrix, such
+*  that if the diagonal block D(k) is of order s (s = 1 or 2), then
+*
+*             (   I    0     0   )  k-1
+*     L(k) =  (   0    I     0   )  s
+*             (   0    v     I   )  n-k-s+1
+*                k-1   s  n-k-s+1
+*
+*  If s = 1, D(k) overwrites A(k,k), and v overwrites A(k+1:n,k).
+*  If s = 2, the lower triangle of D(k) overwrites A(k,k), A(k+1,k),
+*  and A(k+1,k+1), and v overwrites A(k+2:n,k:k+1).
+*
+*  =====================================================================
+*
+*     .. Local Scalars ..
+      LOGICAL            LQUERY, UPPER
+      INTEGER            IINFO, IWS, J, K, KB, LDWORK, LWKOPT, NB, NBMIN
+*     ..
+*     .. External Functions ..
+      LOGICAL            LSAME
+      INTEGER            ILAENV
+      EXTERNAL           LSAME, ILAENV
+*     ..
+*     .. External Subroutines ..
+      EXTERNAL           DLASYF, DSYTF2, XERBLA
+*     ..
+*     .. Intrinsic Functions ..
+      INTRINSIC          MAX
+*     ..
+*     .. Executable Statements ..
+*
+*     Test the input parameters.
+*
+      INFO = 0
+      UPPER = LSAME( UPLO, 'U' )
+      LQUERY = ( LWORK.EQ.-1 )
+      IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+         INFO = -1
+      ELSE IF( N.LT.0 ) THEN
+         INFO = -2
+      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+         INFO = -4
+      ELSE IF( LWORK.LT.1 .AND. .NOT.LQUERY ) THEN
+         INFO = -7
+      END IF
+*
+      IF( INFO.EQ.0 ) THEN
+*
+*        Determine the block size
+*
+         NB = ILAENV( 1, 'DSYTRF', UPLO, N, -1, -1, -1 )
+         LWKOPT = N*NB
+         WORK( 1 ) = LWKOPT
+      END IF
+*
+      IF( INFO.NE.0 ) THEN
+         CALL XERBLA( 'DSYTRF', -INFO )
+         RETURN
+      ELSE IF( LQUERY ) THEN
+         RETURN
+      END IF
+*
+      NBMIN = 2
+      LDWORK = N
+      IF( NB.GT.1 .AND. NB.LT.N ) THEN
+         IWS = LDWORK*NB
+         IF( LWORK.LT.IWS ) THEN
+            NB = MAX( LWORK / LDWORK, 1 )
+            NBMIN = MAX( 2, ILAENV( 2, 'DSYTRF', UPLO, N, -1, -1, -1 ) )
+         END IF
+      ELSE
+         IWS = 1
+      END IF
+      IF( NB.LT.NBMIN )
+     $   NB = N
+*
+      IF( UPPER ) THEN
+*
+*        Factorize A as U*D*U' using the upper triangle of A
+*
+*        K is the main loop index, decreasing from N to 1 in steps of
+*        KB, where KB is the number of columns factorized by DLASYF;
+*        KB is either NB or NB-1, or K for the last block
+*
+         K = N
+   10    CONTINUE
+*
+*        If K < 1, exit from loop
+*
+         IF( K.LT.1 )
+     $      GO TO 40
+*
+         IF( K.GT.NB ) THEN
+*
+*           Factorize columns k-kb+1:k of A and use blocked code to
+*           update columns 1:k-kb
+*
+            CALL DLASYF( UPLO, K, NB, KB, A, LDA, IPIV, WORK, LDWORK,
+     $                   IINFO )
+         ELSE
+*
+*           Use unblocked code to factorize columns 1:k of A
+*
+            CALL DSYTF2( UPLO, K, A, LDA, IPIV, IINFO )
+            KB = K
+         END IF
+*
+*        Set INFO on the first occurrence of a zero pivot
+*
+         IF( INFO.EQ.0 .AND. IINFO.GT.0 )
+     $      INFO = IINFO
+*
+*        Decrease K and return to the start of the main loop
+*
+         K = K - KB
+         GO TO 10
+*
+      ELSE
+*
+*        Factorize A as L*D*L' using the lower triangle of A
+*
+*        K is the main loop index, increasing from 1 to N in steps of
+*        KB, where KB is the number of columns factorized by DLASYF;
+*        KB is either NB or NB-1, or N-K+1 for the last block
+*
+         K = 1
+   20    CONTINUE
+*
+*        If K > N, exit from loop
+*
+         IF( K.GT.N )
+     $      GO TO 40
+*
+         IF( K.LE.N-NB ) THEN
+*
+*           Factorize columns k:k+kb-1 of A and use blocked code to
+*           update columns k+kb:n
+*
+            CALL DLASYF( UPLO, N-K+1, NB, KB, A( K, K ), LDA, IPIV( K ),
+     $                   WORK, LDWORK, IINFO )
+         ELSE
+*
+*           Use unblocked code to factorize columns k:n of A
+*
+            CALL DSYTF2( UPLO, N-K+1, A( K, K ), LDA, IPIV( K ), IINFO )
+            KB = N - K + 1
+         END IF
+*
+*        Set INFO on the first occurrence of a zero pivot
+*
+         IF( INFO.EQ.0 .AND. IINFO.GT.0 )
+     $      INFO = IINFO + K - 1
+*
+*        Adjust IPIV
+*
+         DO 30 J = K, K + KB - 1
+            IF( IPIV( J ).GT.0 ) THEN
+               IPIV( J ) = IPIV( J ) + K - 1
+            ELSE
+               IPIV( J ) = IPIV( J ) - K + 1
+            END IF
+   30    CONTINUE
+*
+*        Increase K and return to the start of the main loop
+*
+         K = K + KB
+         GO TO 20
+*
+      END IF
+*
+   40 CONTINUE
+      WORK( 1 ) = LWKOPT
+      RETURN
+*
+*     End of DSYTRF
+*
+      END
+      SUBROUTINE DSYTRS( UPLO, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+*
+*  -- LAPACK routine (version 3.0) --
+*     Univ. of Tennessee, Univ. of California Berkeley, NAG Ltd.,
+*     Courant Institute, Argonne National Lab, and Rice University
+*     March 31, 1993
+*
+*     .. Scalar Arguments ..
+      CHARACTER          UPLO
+      INTEGER            INFO, LDA, LDB, N, NRHS
+*     ..
+*     .. Array Arguments ..
+      INTEGER            IPIV( * )
+      DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  DSYTRS solves a system of linear equations A*X = B with a real
+*  symmetric matrix A using the factorization A = U*D*U**T or
+*  A = L*D*L**T computed by DSYTRF.
+*
+*  Arguments
+*  =========
+*
+*  UPLO    (input) CHARACTER*1
+*          Specifies whether the details of the factorization are stored
+*          as an upper or lower triangular matrix.
+*          = 'U':  Upper triangular, form is A = U*D*U**T;
+*          = 'L':  Lower triangular, form is A = L*D*L**T.
+*
+*  N       (input) INTEGER
+*          The order of the matrix A.  N >= 0.
+*
+*  NRHS    (input) INTEGER
+*          The number of right hand sides, i.e., the number of columns
+*          of the matrix B.  NRHS >= 0.
+*
+*  A       (input) DOUBLE PRECISION array, dimension (LDA,N)
+*          The block diagonal matrix D and the multipliers used to
+*          obtain the factor U or L as computed by DSYTRF.
+*
+*  LDA     (input) INTEGER
+*          The leading dimension of the array A.  LDA >= max(1,N).
+*
+*  IPIV    (input) INTEGER array, dimension (N)
+*          Details of the interchanges and the block structure of D
+*          as determined by DSYTRF.
+*
+*  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+*          On entry, the right hand side matrix B.
+*          On exit, the solution matrix X.
+*
+*  LDB     (input) INTEGER
+*          The leading dimension of the array B.  LDB >= max(1,N).
+*
+*  INFO    (output) INTEGER
+*          = 0:  successful exit
+*          < 0:  if INFO = -i, the i-th argument had an illegal value
+*
+*  =====================================================================
+*
+*     .. Parameters ..
+      DOUBLE PRECISION   ONE
+      PARAMETER          ( ONE = 1.0D+0 )
+*     ..
+*     .. Local Scalars ..
+      LOGICAL            UPPER
+      INTEGER            J, K, KP
+      DOUBLE PRECISION   AK, AKM1, AKM1K, BK, BKM1, DENOM
+*     ..
+*     .. External Functions ..
+      LOGICAL            LSAME
+      EXTERNAL           LSAME
+*     ..
+*     .. External Subroutines ..
+      EXTERNAL           DGEMV, DGER, DSCAL, DSWAP, XERBLA
+*     ..
+*     .. Intrinsic Functions ..
+      INTRINSIC          MAX
+*     ..
+*     .. Executable Statements ..
+*
+      INFO = 0
+      UPPER = LSAME( UPLO, 'U' )
+      IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+         INFO = -1
+      ELSE IF( N.LT.0 ) THEN
+         INFO = -2
+      ELSE IF( NRHS.LT.0 ) THEN
+         INFO = -3
+      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+         INFO = -5
+      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+         INFO = -8
+      END IF
+      IF( INFO.NE.0 ) THEN
+         CALL XERBLA( 'DSYTRS', -INFO )
+         RETURN
+      END IF
+*
+*     Quick return if possible
+*
+      IF( N.EQ.0 .OR. NRHS.EQ.0 )
+     $   RETURN
+*
+      IF( UPPER ) THEN
+*
+*        Solve A*X = B, where A = U*D*U'.
+*
+*        First solve U*D*X = B, overwriting B with X.
+*
+*        K is the main loop index, decreasing from N to 1 in steps of
+*        1 or 2, depending on the size of the diagonal blocks.
+*
+         K = N
+   10    CONTINUE
+*
+*        If K < 1, exit from loop.
+*
+         IF( K.LT.1 )
+     $      GO TO 30
+*
+         IF( IPIV( K ).GT.0 ) THEN
+*
+*           1 x 1 diagonal block
+*
+*           Interchange rows K and IPIV(K).
+*
+            KP = IPIV( K )
+            IF( KP.NE.K )
+     $         CALL DSWAP( NRHS, B( K, 1 ), LDB, B( KP, 1 ), LDB )
+*
+*           Multiply by inv(U(K)), where U(K) is the transformation
+*           stored in column K of A.
+*
+            CALL DGER( K-1, NRHS, -ONE, A( 1, K ), 1, B( K, 1 ), LDB,
+     $                 B( 1, 1 ), LDB )
+*
+*           Multiply by the inverse of the diagonal block.
+*
+            CALL DSCAL( NRHS, ONE / A( K, K ), B( K, 1 ), LDB )
+            K = K - 1
+         ELSE
+*
+*           2 x 2 diagonal block
+*
+*           Interchange rows K-1 and -IPIV(K).
+*
+            KP = -IPIV( K )
+            IF( KP.NE.K-1 )
+     $         CALL DSWAP( NRHS, B( K-1, 1 ), LDB, B( KP, 1 ), LDB )
+*
+*           Multiply by inv(U(K)), where U(K) is the transformation
+*           stored in columns K-1 and K of A.
+*
+            CALL DGER( K-2, NRHS, -ONE, A( 1, K ), 1, B( K, 1 ), LDB,
+     $                 B( 1, 1 ), LDB )
+            CALL DGER( K-2, NRHS, -ONE, A( 1, K-1 ), 1, B( K-1, 1 ),
+     $                 LDB, B( 1, 1 ), LDB )
+*
+*           Multiply by the inverse of the diagonal block.
+*
+            AKM1K = A( K-1, K )
+            AKM1 = A( K-1, K-1 ) / AKM1K
+            AK = A( K, K ) / AKM1K
+            DENOM = AKM1*AK - ONE
+            DO 20 J = 1, NRHS
+               BKM1 = B( K-1, J ) / AKM1K
+               BK = B( K, J ) / AKM1K
+               B( K-1, J ) = ( AK*BKM1-BK ) / DENOM
+               B( K, J ) = ( AKM1*BK-BKM1 ) / DENOM
+   20       CONTINUE
+            K = K - 2
+         END IF
+*
+         GO TO 10
+   30    CONTINUE
+*
+*        Next solve U'*X = B, overwriting B with X.
+*
+*        K is the main loop index, increasing from 1 to N in steps of
+*        1 or 2, depending on the size of the diagonal blocks.
+*
+         K = 1
+   40    CONTINUE
+*
+*        If K > N, exit from loop.
+*
+         IF( K.GT.N )
+     $      GO TO 50
+*
+         IF( IPIV( K ).GT.0 ) THEN
+*
+*           1 x 1 diagonal block
+*
+*           Multiply by inv(U'(K)), where U(K) is the transformation
+*           stored in column K of A.
+*
+            CALL DGEMV( 'Transpose', K-1, NRHS, -ONE, B, LDB, A( 1, K ),
+     $                  1, ONE, B( K, 1 ), LDB )
+*
+*           Interchange rows K and IPIV(K).
+*
+            KP = IPIV( K )
+            IF( KP.NE.K )
+     $         CALL DSWAP( NRHS, B( K, 1 ), LDB, B( KP, 1 ), LDB )
+            K = K + 1
+         ELSE
+*
+*           2 x 2 diagonal block
+*
+*           Multiply by inv(U'(K+1)), where U(K+1) is the transformation
+*           stored in columns K and K+1 of A.
+*
+            CALL DGEMV( 'Transpose', K-1, NRHS, -ONE, B, LDB, A( 1, K ),
+     $                  1, ONE, B( K, 1 ), LDB )
+            CALL DGEMV( 'Transpose', K-1, NRHS, -ONE, B, LDB,
+     $                  A( 1, K+1 ), 1, ONE, B( K+1, 1 ), LDB )
+*
+*           Interchange rows K and -IPIV(K).
+*
+            KP = -IPIV( K )
+            IF( KP.NE.K )
+     $         CALL DSWAP( NRHS, B( K, 1 ), LDB, B( KP, 1 ), LDB )
+            K = K + 2
+         END IF
+*
+         GO TO 40
+   50    CONTINUE
+*
+      ELSE
+*
+*        Solve A*X = B, where A = L*D*L'.
+*
+*        First solve L*D*X = B, overwriting B with X.
+*
+*        K is the main loop index, increasing from 1 to N in steps of
+*        1 or 2, depending on the size of the diagonal blocks.
+*
+         K = 1
+   60    CONTINUE
+*
+*        If K > N, exit from loop.
+*
+         IF( K.GT.N )
+     $      GO TO 80
+*
+         IF( IPIV( K ).GT.0 ) THEN
+*
+*           1 x 1 diagonal block
+*
+*           Interchange rows K and IPIV(K).
+*
+            KP = IPIV( K )
+            IF( KP.NE.K )
+     $         CALL DSWAP( NRHS, B( K, 1 ), LDB, B( KP, 1 ), LDB )
+*
+*           Multiply by inv(L(K)), where L(K) is the transformation
+*           stored in column K of A.
+*
+            IF( K.LT.N )
+     $         CALL DGER( N-K, NRHS, -ONE, A( K+1, K ), 1, B( K, 1 ),
+     $                    LDB, B( K+1, 1 ), LDB )
+*
+*           Multiply by the inverse of the diagonal block.
+*
+            CALL DSCAL( NRHS, ONE / A( K, K ), B( K, 1 ), LDB )
+            K = K + 1
+         ELSE
+*
+*           2 x 2 diagonal block
+*
+*           Interchange rows K+1 and -IPIV(K).
+*
+            KP = -IPIV( K )
+            IF( KP.NE.K+1 )
+     $         CALL DSWAP( NRHS, B( K+1, 1 ), LDB, B( KP, 1 ), LDB )
+*
+*           Multiply by inv(L(K)), where L(K) is the transformation
+*           stored in columns K and K+1 of A.
+*
+            IF( K.LT.N-1 ) THEN
+               CALL DGER( N-K-1, NRHS, -ONE, A( K+2, K ), 1, B( K, 1 ),
+     $                    LDB, B( K+2, 1 ), LDB )
+               CALL DGER( N-K-1, NRHS, -ONE, A( K+2, K+1 ), 1,
+     $                    B( K+1, 1 ), LDB, B( K+2, 1 ), LDB )
+            END IF
+*
+*           Multiply by the inverse of the diagonal block.
+*
+            AKM1K = A( K+1, K )
+            AKM1 = A( K, K ) / AKM1K
+            AK = A( K+1, K+1 ) / AKM1K
+            DENOM = AKM1*AK - ONE
+            DO 70 J = 1, NRHS
+               BKM1 = B( K, J ) / AKM1K
+               BK = B( K+1, J ) / AKM1K
+               B( K, J ) = ( AK*BKM1-BK ) / DENOM
+               B( K+1, J ) = ( AKM1*BK-BKM1 ) / DENOM
+   70       CONTINUE
+            K = K + 2
+         END IF
+*
+         GO TO 60
+   80    CONTINUE
+*
+*        Next solve L'*X = B, overwriting B with X.
+*
+*        K is the main loop index, decreasing from N to 1 in steps of
+*        1 or 2, depending on the size of the diagonal blocks.
+*
+         K = N
+   90    CONTINUE
+*
+*        If K < 1, exit from loop.
+*
+         IF( K.LT.1 )
+     $      GO TO 100
+*
+         IF( IPIV( K ).GT.0 ) THEN
+*
+*           1 x 1 diagonal block
+*
+*           Multiply by inv(L'(K)), where L(K) is the transformation
+*           stored in column K of A.
+*
+            IF( K.LT.N )
+     $         CALL DGEMV( 'Transpose', N-K, NRHS, -ONE, B( K+1, 1 ),
+     $                     LDB, A( K+1, K ), 1, ONE, B( K, 1 ), LDB )
+*
+*           Interchange rows K and IPIV(K).
+*
+            KP = IPIV( K )
+            IF( KP.NE.K )
+     $         CALL DSWAP( NRHS, B( K, 1 ), LDB, B( KP, 1 ), LDB )
+            K = K - 1
+         ELSE
+*
+*           2 x 2 diagonal block
+*
+*           Multiply by inv(L'(K-1)), where L(K-1) is the transformation
+*           stored in columns K-1 and K of A.
+*
+            IF( K.LT.N ) THEN
+               CALL DGEMV( 'Transpose', N-K, NRHS, -ONE, B( K+1, 1 ),
+     $                     LDB, A( K+1, K ), 1, ONE, B( K, 1 ), LDB )
+               CALL DGEMV( 'Transpose', N-K, NRHS, -ONE, B( K+1, 1 ),
+     $                     LDB, A( K+1, K-1 ), 1, ONE, B( K-1, 1 ),
+     $                     LDB )
+            END IF
+*
+*           Interchange rows K and -IPIV(K).
+*
+            KP = -IPIV( K )
+            IF( KP.NE.K )
+     $         CALL DSWAP( NRHS, B( K, 1 ), LDB, B( KP, 1 ), LDB )
+            K = K - 2
+         END IF
+*
+         GO TO 90
+  100    CONTINUE
+      END IF
+*
+      RETURN
+*
+*     End of DSYTRS
+*
+      END
+      INTEGER FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
+*
+*  -- LAPACK auxiliary routine (version 3.1) --
+*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+*     November 2006
+*
+*     .. Scalar Arguments ..
+      CHARACTER*( * )    NAME, OPTS
+      INTEGER            ISPEC, N1, N2, N3, N4
+*     ..
+*
+*  Purpose
+*  =======
+*
+*  ILAENV is called from the LAPACK routines to choose problem-dependent
+*  parameters for the local environment.  See ISPEC for a description of
+*  the parameters.
+*
+*  This version provides a set of parameters which should give good,
+*  but not optimal, performance on many of the currently available
+*  computers.  Users are encouraged to modify this subroutine to set
+*  the tuning parameters for their particular machine using the option
+*  and problem size information in the arguments.
+*
+*  This routine will not function correctly if it is converted to all
+*  lower case.  Converting it to all upper case is allowed.
+*
+*  Arguments
+*  =========
+*
+*  ISPEC   (input) INTEGER
+*          Specifies the parameter to be returned as the value of
+*          ILAENV.
+*          = 1: the optimal blocksize; if this value is 1, an unblocked
+*               algorithm will give the best performance.
+*          = 2: the minimum block size for which the block routine
+*               should be used; if the usable block size is less than
+*               this value, an unblocked routine should be used.
+*          = 3: the crossover point (in a block routine, for N less
+*               than this value, an unblocked routine should be used)
+*          = 4: the number of shifts, used in the nonsymmetric
+*               eigenvalue routines (DEPRECATED)
+*          = 5: the minimum column dimension for blocking to be used;
+*               rectangular blocks must have dimension at least k by m,
+*               where k is given by ILAENV(2,...) and m by ILAENV(5,...)
+*          = 6: the crossover point for the SVD (when reducing an m by n
+*               matrix to bidiagonal form, if max(m,n)/min(m,n) exceeds
+*               this value, a QR factorization is used first to reduce
+*               the matrix to a triangular form.)
+*          = 7: the number of processors
+*          = 8: the crossover point for the multishift QR method
+*               for nonsymmetric eigenvalue problems (DEPRECATED)
+*          = 9: maximum size of the subproblems at the bottom of the
+*               computation tree in the divide-and-conquer algorithm
+*               (used by xGELSD and xGESDD)
+*          =10: ieee NaN arithmetic can be trusted not to trap
+*          =11: infinity arithmetic can be trusted not to trap
+*          12 <= ISPEC <= 16:
+*               xHSEQR or one of its subroutines,
+*               see IPARMQ for detailed explanation
+*
+*  NAME    (input) CHARACTER*(*)
+*          The name of the calling subroutine, in either upper case or
+*          lower case.
+*
+*  OPTS    (input) CHARACTER*(*)
+*          The character options to the subroutine NAME, concatenated
+*          into a single character string.  For example, UPLO = 'U',
+*          TRANS = 'T', and DIAG = 'N' for a triangular routine would
+*          be specified as OPTS = 'UTN'.
+*
+*  N1      (input) INTEGER
+*  N2      (input) INTEGER
+*  N3      (input) INTEGER
+*  N4      (input) INTEGER
+*          Problem dimensions for the subroutine NAME; these may not all
+*          be required.
+*
+* (ILAENV) (output) INTEGER
+*          >= 0: the value of the parameter specified by ISPEC
+*          < 0:  if ILAENV = -k, the k-th argument had an illegal value.
+*
+*  Further Details
+*  ===============
+*
+*  The following conventions have been used when calling ILAENV from the
+*  LAPACK routines:
+*  1)  OPTS is a concatenation of all of the character options to
+*      subroutine NAME, in the same order that they appear in the
+*      argument list for NAME, even if they are not used in determining
+*      the value of the parameter specified by ISPEC.
+*  2)  The problem dimensions N1, N2, N3, N4 are specified in the order
+*      that they appear in the argument list for NAME.  N1 is used
+*      first, N2 second, and so on, and unused problem dimensions are
+*      passed a value of -1.
+*  3)  The parameter value returned by ILAENV is checked for validity in
+*      the calling subroutine.  For example, ILAENV is used to retrieve
+*      the optimal blocksize for STRTRI as follows:
+*
+*      NB = ILAENV( 1, 'STRTRI', UPLO // DIAG, N, -1, -1, -1 )
+*      IF( NB.LE.1 ) NB = MAX( 1, N )
+*
+*  =====================================================================
+*
+*     .. Local Scalars ..
+      INTEGER            I, IC, IZ, NB, NBMIN, NX
+      LOGICAL            CNAME, SNAME
+      CHARACTER          C1*1, C2*2, C4*2, C3*3, SUBNAM*6
+*     ..
+*     .. Intrinsic Functions ..
+      INTRINSIC          CHAR, ICHAR, INT, MIN, REAL
+*     ..
+*     .. External Functions ..
+      INTEGER            IEEECK, IPARMQ
+      EXTERNAL           IEEECK, IPARMQ
+*     ..
+*     .. Executable Statements ..
+*
+      GO TO ( 10, 10, 10, 80, 90, 100, 110, 120,
+     $        130, 140, 150, 160, 160, 160, 160, 160 )ISPEC
+*
+*     Invalid value for ISPEC
+*
+      ILAENV = -1
+      RETURN
+*
+   10 CONTINUE
+*
+*     Convert NAME to upper case if the first character is lower case.
+*
+      ILAENV = 1
+      SUBNAM = NAME
+      IC = ICHAR( SUBNAM( 1: 1 ) )
+      IZ = ICHAR( 'Z' )
+      IF( IZ.EQ.90 .OR. IZ.EQ.122 ) THEN
+*
+*        ASCII character set
+*
+         IF( IC.GE.97 .AND. IC.LE.122 ) THEN
+            SUBNAM( 1: 1 ) = CHAR( IC-32 )
+            DO 20 I = 2, 6
+               IC = ICHAR( SUBNAM( I: I ) )
+               IF( IC.GE.97 .AND. IC.LE.122 )
+     $            SUBNAM( I: I ) = CHAR( IC-32 )
+   20       CONTINUE
+         END IF
+*
+      ELSE IF( IZ.EQ.233 .OR. IZ.EQ.169 ) THEN
+*
+*        EBCDIC character set
+*
+         IF( ( IC.GE.129 .AND. IC.LE.137 ) .OR.
+     $       ( IC.GE.145 .AND. IC.LE.153 ) .OR.
+     $       ( IC.GE.162 .AND. IC.LE.169 ) ) THEN
+            SUBNAM( 1: 1 ) = CHAR( IC+64 )
+            DO 30 I = 2, 6
+               IC = ICHAR( SUBNAM( I: I ) )
+               IF( ( IC.GE.129 .AND. IC.LE.137 ) .OR.
+     $             ( IC.GE.145 .AND. IC.LE.153 ) .OR.
+     $             ( IC.GE.162 .AND. IC.LE.169 ) )SUBNAM( I:
+     $             I ) = CHAR( IC+64 )
+   30       CONTINUE
+         END IF
+*
+      ELSE IF( IZ.EQ.218 .OR. IZ.EQ.250 ) THEN
+*
+*        Prime machines:  ASCII+128
+*
+         IF( IC.GE.225 .AND. IC.LE.250 ) THEN
+            SUBNAM( 1: 1 ) = CHAR( IC-32 )
+            DO 40 I = 2, 6
+               IC = ICHAR( SUBNAM( I: I ) )
+               IF( IC.GE.225 .AND. IC.LE.250 )
+     $            SUBNAM( I: I ) = CHAR( IC-32 )
+   40       CONTINUE
+         END IF
+      END IF
+*
+      C1 = SUBNAM( 1: 1 )
+      SNAME = C1.EQ.'S' .OR. C1.EQ.'D'
+      CNAME = C1.EQ.'C' .OR. C1.EQ.'Z'
+      IF( .NOT.( CNAME .OR. SNAME ) )
+     $   RETURN
+      C2 = SUBNAM( 2: 3 )
+      C3 = SUBNAM( 4: 6 )
+      C4 = C3( 2: 3 )
+*
+      GO TO ( 50, 60, 70 )ISPEC
+*
+   50 CONTINUE
+*
+*     ISPEC = 1:  block size
+*
+*     In these examples, separate code is provided for setting NB for
+*     real and complex.  We assume that NB will take the same value in
+*     single or double precision.
+*
+      NB = 1
+*
+      IF( C2.EQ.'GE' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            IF( SNAME ) THEN
+               NB = 64
+            ELSE
+               NB = 64
+            END IF
+         ELSE IF( C3.EQ.'QRF' .OR. C3.EQ.'RQF' .OR. C3.EQ.'LQF' .OR.
+     $            C3.EQ.'QLF' ) THEN
+            IF( SNAME ) THEN
+               NB = 32
+            ELSE
+               NB = 32
+            END IF
+         ELSE IF( C3.EQ.'HRD' ) THEN
+            IF( SNAME ) THEN
+               NB = 32
+            ELSE
+               NB = 32
+            END IF
+         ELSE IF( C3.EQ.'BRD' ) THEN
+            IF( SNAME ) THEN
+               NB = 32
+            ELSE
+               NB = 32
+            END IF
+         ELSE IF( C3.EQ.'TRI' ) THEN
+            IF( SNAME ) THEN
+               NB = 64
+            ELSE
+               NB = 64
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'PO' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            IF( SNAME ) THEN
+               NB = 64
+            ELSE
+               NB = 64
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'SY' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            IF( SNAME ) THEN
+               NB = 64
+            ELSE
+               NB = 64
+            END IF
+         ELSE IF( SNAME .AND. C3.EQ.'TRD' ) THEN
+            NB = 32
+         ELSE IF( SNAME .AND. C3.EQ.'GST' ) THEN
+            NB = 64
+         END IF
+      ELSE IF( CNAME .AND. C2.EQ.'HE' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            NB = 64
+         ELSE IF( C3.EQ.'TRD' ) THEN
+            NB = 32
+         ELSE IF( C3.EQ.'GST' ) THEN
+            NB = 64
+         END IF
+      ELSE IF( SNAME .AND. C2.EQ.'OR' ) THEN
+         IF( C3( 1: 1 ).EQ.'G' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NB = 32
+            END IF
+         ELSE IF( C3( 1: 1 ).EQ.'M' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NB = 32
+            END IF
+         END IF
+      ELSE IF( CNAME .AND. C2.EQ.'UN' ) THEN
+         IF( C3( 1: 1 ).EQ.'G' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NB = 32
+            END IF
+         ELSE IF( C3( 1: 1 ).EQ.'M' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NB = 32
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'GB' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            IF( SNAME ) THEN
+               IF( N4.LE.64 ) THEN
+                  NB = 1
+               ELSE
+                  NB = 32
+               END IF
+            ELSE
+               IF( N4.LE.64 ) THEN
+                  NB = 1
+               ELSE
+                  NB = 32
+               END IF
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'PB' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            IF( SNAME ) THEN
+               IF( N2.LE.64 ) THEN
+                  NB = 1
+               ELSE
+                  NB = 32
+               END IF
+            ELSE
+               IF( N2.LE.64 ) THEN
+                  NB = 1
+               ELSE
+                  NB = 32
+               END IF
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'TR' ) THEN
+         IF( C3.EQ.'TRI' ) THEN
+            IF( SNAME ) THEN
+               NB = 64
+            ELSE
+               NB = 64
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'LA' ) THEN
+         IF( C3.EQ.'UUM' ) THEN
+            IF( SNAME ) THEN
+               NB = 64
+            ELSE
+               NB = 64
+            END IF
+         END IF
+      ELSE IF( SNAME .AND. C2.EQ.'ST' ) THEN
+         IF( C3.EQ.'EBZ' ) THEN
+            NB = 1
+         END IF
+      END IF
+      ILAENV = NB
+      RETURN
+*
+   60 CONTINUE
+*
+*     ISPEC = 2:  minimum block size
+*
+      NBMIN = 2
+      IF( C2.EQ.'GE' ) THEN
+         IF( C3.EQ.'QRF' .OR. C3.EQ.'RQF' .OR. C3.EQ.'LQF' .OR. C3.EQ.
+     $       'QLF' ) THEN
+            IF( SNAME ) THEN
+               NBMIN = 2
+            ELSE
+               NBMIN = 2
+            END IF
+         ELSE IF( C3.EQ.'HRD' ) THEN
+            IF( SNAME ) THEN
+               NBMIN = 2
+            ELSE
+               NBMIN = 2
+            END IF
+         ELSE IF( C3.EQ.'BRD' ) THEN
+            IF( SNAME ) THEN
+               NBMIN = 2
+            ELSE
+               NBMIN = 2
+            END IF
+         ELSE IF( C3.EQ.'TRI' ) THEN
+            IF( SNAME ) THEN
+               NBMIN = 2
+            ELSE
+               NBMIN = 2
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'SY' ) THEN
+         IF( C3.EQ.'TRF' ) THEN
+            IF( SNAME ) THEN
+               NBMIN = 8
+            ELSE
+               NBMIN = 8
+            END IF
+         ELSE IF( SNAME .AND. C3.EQ.'TRD' ) THEN
+            NBMIN = 2
+         END IF
+      ELSE IF( CNAME .AND. C2.EQ.'HE' ) THEN
+         IF( C3.EQ.'TRD' ) THEN
+            NBMIN = 2
+         END IF
+      ELSE IF( SNAME .AND. C2.EQ.'OR' ) THEN
+         IF( C3( 1: 1 ).EQ.'G' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NBMIN = 2
+            END IF
+         ELSE IF( C3( 1: 1 ).EQ.'M' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NBMIN = 2
+            END IF
+         END IF
+      ELSE IF( CNAME .AND. C2.EQ.'UN' ) THEN
+         IF( C3( 1: 1 ).EQ.'G' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NBMIN = 2
+            END IF
+         ELSE IF( C3( 1: 1 ).EQ.'M' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NBMIN = 2
+            END IF
+         END IF
+      END IF
+      ILAENV = NBMIN
+      RETURN
+*
+   70 CONTINUE
+*
+*     ISPEC = 3:  crossover point
+*
+      NX = 0
+      IF( C2.EQ.'GE' ) THEN
+         IF( C3.EQ.'QRF' .OR. C3.EQ.'RQF' .OR. C3.EQ.'LQF' .OR. C3.EQ.
+     $       'QLF' ) THEN
+            IF( SNAME ) THEN
+               NX = 128
+            ELSE
+               NX = 128
+            END IF
+         ELSE IF( C3.EQ.'HRD' ) THEN
+            IF( SNAME ) THEN
+               NX = 128
+            ELSE
+               NX = 128
+            END IF
+         ELSE IF( C3.EQ.'BRD' ) THEN
+            IF( SNAME ) THEN
+               NX = 128
+            ELSE
+               NX = 128
+            END IF
+         END IF
+      ELSE IF( C2.EQ.'SY' ) THEN
+         IF( SNAME .AND. C3.EQ.'TRD' ) THEN
+            NX = 32
+         END IF
+      ELSE IF( CNAME .AND. C2.EQ.'HE' ) THEN
+         IF( C3.EQ.'TRD' ) THEN
+            NX = 32
+         END IF
+      ELSE IF( SNAME .AND. C2.EQ.'OR' ) THEN
+         IF( C3( 1: 1 ).EQ.'G' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NX = 128
+            END IF
+         END IF
+      ELSE IF( CNAME .AND. C2.EQ.'UN' ) THEN
+         IF( C3( 1: 1 ).EQ.'G' ) THEN
+            IF( C4.EQ.'QR' .OR. C4.EQ.'RQ' .OR. C4.EQ.'LQ' .OR. C4.EQ.
+     $          'QL' .OR. C4.EQ.'HR' .OR. C4.EQ.'TR' .OR. C4.EQ.'BR' )
+     $           THEN
+               NX = 128
+            END IF
+         END IF
+      END IF
+      ILAENV = NX
+      RETURN
+*
+   80 CONTINUE
+*
+*     ISPEC = 4:  number of shifts (used by xHSEQR)
+*
+      ILAENV = 6
+      RETURN
+*
+   90 CONTINUE
+*
+*     ISPEC = 5:  minimum column dimension (not used)
+*
+      ILAENV = 2
+      RETURN
+*
+  100 CONTINUE
+*
+*     ISPEC = 6:  crossover point for SVD (used by xGELSS and xGESVD)
+*
+      ILAENV = INT( REAL( MIN( N1, N2 ) )*1.6E0 )
+      RETURN
+*
+  110 CONTINUE
+*
+*     ISPEC = 7:  number of processors (not used)
+*
+      ILAENV = 1
+      RETURN
+*
+  120 CONTINUE
+*
+*     ISPEC = 8:  crossover point for multishift (used by xHSEQR)
+*
+      ILAENV = 50
+      RETURN
+*
+  130 CONTINUE
+*
+*     ISPEC = 9:  maximum size of the subproblems at the bottom of the
+*                 computation tree in the divide-and-conquer algorithm
+*                 (used by xGELSD and xGESDD)
+*
+      ILAENV = 25
+      RETURN
+*
+  140 CONTINUE
+*
+*     ISPEC = 10: ieee NaN arithmetic can be trusted not to trap
+*
+*     ILAENV = 0
+      ILAENV = 1
+      IF( ILAENV.EQ.1 ) THEN
+         ILAENV = IEEECK( 0, 0.0, 1.0 )
+      END IF
+      RETURN
+*
+  150 CONTINUE
+*
+*     ISPEC = 11: infinity arithmetic can be trusted not to trap
+*
+*     ILAENV = 0
+      ILAENV = 1
+      IF( ILAENV.EQ.1 ) THEN
+         ILAENV = IEEECK( 1, 0.0, 1.0 )
+      END IF
+      RETURN
+*
+  160 CONTINUE
+*
+*     12 <= ISPEC <= 16: xHSEQR or one of its subroutines. 
+*
+      ILAENV = IPARMQ( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
+      RETURN
+*
+*     End of ILAENV
+*
+      END

@@ -1,0 +1,21 @@
+C---------------------------------------------
+C     COMMON BLOCKS AND GLOBAL PARAMETERS
+C---------------------------------------------
+
+      PARAMETER(Nrdat=76,Nvdat=20)
+      PARAMETER(Nrlib=19,Nvlib=5)
+      PARAMETER(Nrbey=76)
+      PARAMETER(Nvel=19,norbsmax=200)
+
+      PARAMETER(iEstep=2,iLzstep=2)
+      PARAMETER(ivstep=2,Nl=20)
+      PARAMETER(ideltaE=0,ideltaLz=0)
+      PARAMETER(cval= 1.00,vfrac=3.0)
+      PARAMETER(Nrelz=60,celz= 1.00)
+      PARAMETER(rsfrac=0.90)
+      PARAMETER(xorbitmin=0.02,xorbitmax=2300.)
+      PARAMETER(efac0=0.5,efac_min=0.05,deltaE_max=0.09)
+
+      PARAMETER(Nsos=80,Nsosmin=80)
+
+      include 'bothdefs.fix'

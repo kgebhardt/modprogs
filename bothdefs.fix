@@ -1,0 +1,4 @@
+      PARAMETER (Nrani=Nrlib,Ntani=Nvlib)
+      PARAMETER (Nbin=(Nrlib-1)*Nvlib+1)
+
+      PARAMETER(pi=3.1415926539,arcsec=206265.,GG=4.3007105e-3) 

@@ -1,0 +1,99 @@
+
+      subroutine getsum(is,see,sumb,sumbn)
+      INCLUDE 'moddefs.h'
+      real sumb(Nrlib,Nvlib,Nrlib,Nvlib),sumbn(Nrlib,Nvlib,Nrlib,Nvlib)
+      real sumbt(Nrlib,Nvlib),sumbnt(Nrlib,Nvlib)
+
+      np=100
+
+      rmaxs=10.*see/2.35
+      den1=2.*see*see/2.35/2.35
+      den2=1.
+      amp1=1.0
+      amp2=0.0
+      r2=0.
+cc -  this is for the STIS PSF
+c      if(is.eq.1) then
+c         den1=2.*(0.0329/angrad)**2
+c         den2=2.*(0.0384/angrad)**2
+c         r2=0.105/angrad
+c         amp1=1.01
+c         amp2=0.12
+c         print *,'In getsum: ',den1,den2,r2,amp2
+c      endif
+cc - this is for FOS
+c      if(is.eq.1) then
+c         den1=2.*(0.0340/angrad)**2
+c         den2=2.*(0.0384/angrad)**2
+c         r2=0.105/angrad
+c         amp1=1.0
+c         amp2=0.
+c         print *,'In getsum: ',den1,den2,r2,amp2
+c      endif
+
+      do ir=1,Nrlib
+         r=RneeIR(ir*irrat-1)
+         do iv=1,Nvlib
+                  
+            do irp=1,Nrlib
+               do ivp=1,Nvlib
+                  sumbt(irp,ivp)=0.
+                  sumbnt(irp,ivp)=0.
+               enddo
+            enddo
+
+c - get the bin centers
+
+            v=VneeIV(iv*ivrat-1)
+            x=r*sqrt(1.-v*v)
+            y=r*v
+            xmin=x-rmaxs
+            xmult=2.*rmaxs/float(np-1)
+            ymin=y-rmaxs
+            
+            sumg=0.
+            do ix=1,np
+               xp=xmin+(ix-1)*xmult
+               xd=x-xp
+               do iy=1,np
+                  yp=ymin+(iy-1)*xmult
+                  yd=y-yp
+                  rp=sqrt(xp*xp+yp*yp)
+                  vp=abs(yp/rp)
+                  irp=IRCneeR(rp)
+                  ivp=IVCneeV(vp)
+                  rd=xd*xd+yd*yd
+                  gaus=amp1*exp(-rd/den1)
+c     $                 +amp2*exp((sqrt(rd)-r2)**2/den2)
+c                  if(is.eq.1) then
+c                     gaus=1.01*exp(-rd/den1)+
+c     $                    amp2*exp(-(sqrt(rd)-r2)**2/den2)
+c                  else
+c                     gaus=exp(-rd/den)
+c                  endif
+                  sumg=sumg+gaus
+c     print *,ir,iv,irp,ivp,gaus
+                  if(irp.gt.0) then
+                     if(xp.gt.0.) then
+                        sumbt(irp,ivp)=sumbt(irp,ivp)+gaus
+                     else
+                        sumbnt(irp,ivp)=sumbnt(irp,ivp)+gaus
+                     endif
+                  endif
+               enddo
+            enddo
+            
+            do irp=1,Nrlib
+               do ivp=1,Nvlib
+                  sumb(ir,iv,irp,ivp)=sumbt(irp,ivp)/sumg
+                  sumbn(ir,iv,irp,ivp)=sumbnt(irp,ivp)/sumg
+c                  print *,'Sum in bin ',ir,iv,irp,ivp,
+c     $                 sumb(ir,iv,irp,ivp),sumbn(ir,iv,irp,ivp)
+               enddo
+            enddo
+         enddo
+      enddo
+ 666  continue
+
+      return
+      end

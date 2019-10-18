@@ -1,0 +1,32 @@
+      PARAMETER (Nvelbm=95)
+
+      COMMON/galaxy/totmass,totlight,hole,xinclin,distance,xmutarget,
+     &  core,cden,sini,cosi,angrad,cslope,islitsize
+
+      COMMON/potgrid/perimin,apomax,rpotmin,rpotmax,
+     &	rlgpotmin,rlgpotmax
+
+      COMMON/vpar/vmin,vmax,vmult,vadd
+      COMMON/kbin/irmax,ivmax,irrat,ivrat
+      COMMON/rbin/a,b,rmin
+      COMMON/volu/area2d(Nrdat,Nvdat),area2dC(Nrlib,Nvlib),vol2d(Nrdat)
+      COMMON/marr/adfer(Nveld,Nvelbm),ad(Nveld,Nvelbm),
+     &  veld(Nveld,Nvelbm),velm(Nvel),rbin(Nvelbm),chi1(Nvelbm),
+     &  iminor(Nvelbm),iang(Nvelbm)
+      COMMON xbin(Nvelbm),ybin(Nvelbm),isee(Nvelbm)
+      COMMON/mvar/alphat,apfac,apfacmu,xmu,alp,ent,chi,xlbad,
+     &  nad,iseed,Niter,Norbit,Norb,Nvelb,ifit,
+     &  alphastop,alphainc,fracrv
+
+      COMMON/xmaps/xlib(Nbin,Norbitm),SMc(Nbin),
+     &  summed(Nbin+Nvel*Nvelbm),SBM(Nrdat,Nvdat),
+     &  sumad(Nvel,Nvelbm),sadfer(Nvel,Nvelbm),SMctemp(Nrlib,Nvlib),
+     &  d3lib(Nbin,Norbitm),d3c(Nbin),SMcorig(Nbin),smlib(Nbin,Norbitm)
+
+      COMMON/vmaps/v1lib(Nvel,Nvelbm,Norbitm),nname(Nvelbm),
+     &  ivelb(Nvelbm),ivelb2(Nvelbm)
+
+     
+      COMMON/weights/w(Norbitm+Nvel*Nvelbm),wphase(Norbitm)
+
+      COMMON/seeing/seeb(Nstot),areakin(Nvelbm,Nbin)

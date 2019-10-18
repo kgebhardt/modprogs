@@ -1,0 +1,7 @@
+Makefile
+triangle.c
+triangle.h
+triangle.o
+varea*
+varea.c
+varea.o

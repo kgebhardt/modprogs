@@ -1,0 +1,15 @@
+rm -f weights.out.$1.$2 ml.out.$1.$2 chi.out.$1.$2 iteration.out.$1.$2
+rm -f intmom.$1.$2
+#cp weights.out weights.out.$1.$2_$3.$4
+#cp ml.out ml.out.$1.$2_$3.$4
+#cp chi.out chi.out.$1.$2_$3.$4
+#cp iteration.out iteration.out.$1.$2_$3.$4
+#cp intmom.out intmom.$1.$2_$3.$4
+#cp niteration.out niteration.out.$1.$2_$3.$4
+#cp chisquare.out chisquare.$1.$2_$3.$4
+#cp intML.out intML.$1.$2_$3.$4
+#mv -f gherm.out gherm.$1.$2_$3.$4
+
+tar -czf mod.$1.$2_$3.$4.tar.gz chigh.out chilosvd.out gherm.dat gherm.out intmom.out dens.out mass.out potential.out forces.out ghacc.out projkin.out losvd.out phasevols.out niteration.out iteration.out 2nd_deriv.out ml.out chilib.out chisquare.out weights.* gamma0.out coredat.new
+
+cp chilib.out chilib.out.$3

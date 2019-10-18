@@ -1,0 +1,32 @@
+      COMMON/galaxy/totmass,totlight,hole,xinclin,distance,xmutarget,
+     &  core,cden,sini,cosi,angrad,vmult,vadd,cslope
+
+      COMMON/potgrid/ perimin,apomax,rpotmin,rpotmax,
+     &	rlgpotmin,rlgpotmax
+
+      COMMON/relzbin/aelz,belz,relzmin,relzmax
+
+      COMMON/kbin/irmax,ivmax,irrat,ivrat
+      COMMON/rbinc/a,b,rmin
+      COMMON/volu/area2d(Nrdat,Nvdat),area2dC(Nrlib,Nvlib),vol2d(Nrdat)
+      COMMON/kslit/Nsw_alpha,Nsw_apfac,iseed,Niter,Norbtot
+      COMMON/iquadr/iquad,nlegup
+      COMMON/halo/qdm,ihalo,cnfw,rsnfw,xmgamma,rsgamma,
+     &	gamma,rc,v0,dis,gdennorm
+
+      COMMON/ergo/xLz,Etot
+      COMMON/ffix/vfix(11),fmin(11),fmax(11),pmax(11)
+
+      COMMON/xmaps/dL(Nrdat,Nvdat),ratML(Nrdat,Nvdat),SMc(Nrlib,Nvlib),
+     &  rsos(Nsos),Vrsos(Nsos),tsos(Nsos)
+
+      COMMON/weights/wphase(Norbit)
+
+c      COMMON/tabular/tabv(nlegdim,Nrdat+ndens),tabfr(nlegdim,
+c     &  Nrdat+ndens),tabfv(nlegdim,Nrdat+ndens),rho(Nrdat,Nvdat)
+
+      COMMON/tabular/tabv(nlegdim,npot),tabfr(nlegdim,npot),
+     &  tabfv(nlegdim,npot),rho(Nrdat,Nvdat),rhobey(Nrbey,Nvdat)
+	
+      COMMON/halotabular/htabv(nlegdim,npot),htabfr(nlegdim,
+     &  npot),htabfv(nlegdim,npot)

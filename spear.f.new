@@ -1,0 +1,102 @@
+C=============================================================================D
+C     subroutine SPEAR computes Lagrange multiplers and the Newton-Raphson
+C        correction term, and ajusts the weights accordingly
+C
+C     USED BY MODEL
+C
+C=============================================================================D
+      SUBROUTINE spear(S,dS,ddS,rcond)
+      INCLUDE 'moddefs.h'
+      parameter(lds=Norbitm+Nvel*Nvelbm,lda=Nbin+Nvel*Nvelbm)
+      DOUBLE PRECISION S,dS(lds),ddS(lds)
+      DOUBLE PRECISION Am(lda,lda),delY(lda),xtmp2
+      DOUBLE PRECISION workvec(lda),kpvt(lda),rcond,sum,xtmp
+      DOUBLE PRECISION Cma(Norbitm+Nvel*Nvelbm,Nbin+Nvel*Nvelbm)
+      DOUBLE PRECISION Cmd(Nbin+Nvel*Nvelbm,Norbitm+Nvel*Nvelbm)
+
+      data big /1.e20/
+      common/cfracnew/fracnew
+
+      ldai=lda
+      Nvtot=Nvel*Nvelb
+      Narr=Nbin+Nvtot
+      ilast=Norbit+Nvtot
+
+C---- calculate matrix Am
+
+      do j=1,ilast
+         do i=1,Narr
+            Cma(j,i) = dble(Cm(i,j))/ddS(j)
+            Cmd(i,j) = dble(Cm(i,j))
+         end do
+      end do
+
+      call dgemm('N', 'N', Narr, Narr, ilast, 1.d0, Cmd, lda,
+     &     Cma, lds, 0.d0, Am, lda)
+
+c      do j = 1,ilast
+c         do i2=1,Narr
+c            xtmp=Cma(j,i2)
+c            do i1=1,Narr
+c               Am(i1,i2)=Am(i1,i2)+dble(Cm(i1,j))*xtmp
+c            enddo
+c         enddo
+c      enddo
+
+C---- calculate deviation from SMc map = first Nbin entries of delY
+
+      do ibin=1,Nbin
+         sum=0.d0
+         do iorb=1,Norbit
+            sum=sum+dble(w(iorb))*dble(xlib(ibin,iorb))
+         enddo
+         delY(ibin)=dble(SMc(ibin))-sum
+      enddo
+
+C---- calculate deviation from observed dispersion = last Nvtot entries of delY
+
+      do irc=1,Nvelb
+         do ivel=1,Nvel
+            i=Nbin+(irc-1)*Nvel+ivel
+            sum=0.d0
+            do iorb=1,Norbit
+               sum=sum+dble(w(iorb)*v1lib(ivel,irc,iorb))
+            enddo
+            sum=sum+dble(w(Norbit+(irc-1)*Nvel+ivel))
+            delY(i)=dble(sumad(ivel,irc)*fracnew)-sum
+         enddo
+      enddo
+
+C---- calculate the C*dS/ddS term
+
+      do i=1,Narr
+        do j=1,ilast
+          delY(i)=delY(i)+Cm(i,j)*dS(j)/ddS(j)
+        enddo
+      enddo
+
+C---- invert Am and solve for the Lagrange multipliers
+
+      nnn=Narr
+      call dsico(Am,ldai,nnn,kpvt,rcond,workvec)
+      call dsisl(Am,ldai,nnn,kpvt,delY)
+
+C---- adjust weights
+
+      do j=1,ilast
+         sum=0.d0
+         do i=1,Narr
+            sum=sum+delY(i)*Cm(i,j)
+         enddo
+         dw=sngl((sum-dS(j))/ddS(j))
+         wnew=w(j)+apfac*dw
+c         if(j.le.Norbit.and.wnew.le.0) then
+c            w(j)=w(j)/4.
+c         else
+            w(j)=wnew
+c         endif
+      enddo
+
+      RETURN
+      END
+

@@ -1,0 +1,25 @@
+rm v1lib.out.$1.gz vani.out.$1.gz xlib.out.$1.gz d3.out.$1.gz
+rm highervani.out.$1.gz
+cp v1lib.out v1lib.out.$1
+gzip -f v1lib.out.$1
+cp vani.out vani.out.$1
+cp highervani.out highervani.out.$1
+gzip -f vani.out.$1
+gzip -f highervani.out.$1
+cp phase.vor phase.out.$1
+cp xlib.out xlib.out.$1
+gzip -f xlib.out.$1
+cp d3.out d3.out.$1
+gzip -f d3.out.$1
+cp totml.out totml.out.$1
+cp dL.dat dL.dat.$1
+cp gal.dat gal.dat.$1
+cp integrals.out integrals.out.$1
+cp norbit norbit.$1
+cp librarian.out librarian.out.$1
+cp sos1.out sos1.out.$1
+cp sos2.out sos2.out.$1 
+rm sos1.out.$1.gz
+rm sos2.out.$1.gz
+gzip sos1.out.$1
+gzip sos2.out.$1
